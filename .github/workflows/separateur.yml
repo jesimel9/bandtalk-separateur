@@ -1,0 +1,53 @@
+name: Séparateur BandTalk
+
+# Démarre toutes les 5 minutes (minimum GitHub Actions)
+# et peut aussi se déclencher à la main depuis l'onglet « Actions »
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+# Évite que deux runs tournent en même temps (déjà empêché côté base, double sécurité)
+concurrency:
+  group: separateur-bandtalk
+  cancel-in-progress: false
+
+jobs:
+  traiter_un_morceau:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # large marge pour un morceau de 10 min
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Installer ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Récupérer le modèle Demucs depuis le cache
+        id: cache-demucs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/torch/hub/checkpoints
+          key: demucs-htdemucs_6s-v1
+
+      - name: Installer les dépendances Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Traiter un morceau
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DEMUCS_MODELE: htdemucs_6s
+          DUREE_MAX_SECONDES: "600"
+          DEBIT_MP3_KBPS: "192"
+        run: python traiter_un_morceau.py

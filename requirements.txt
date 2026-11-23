@@ -1,0 +1,21 @@
+# Dépendances Python pour le séparateur BandTalk (version GitHub Actions)
+# Pas de FastAPI/uvicorn ici : on tourne en script one-shot, pas en serveur HTTP.
+
+# Base de données Supabase
+supabase==2.9.1
+storage3==0.8.2
+postgrest==0.17.2
+
+# Séparation audio
+demucs==4.0.1
+
+# PyTorch CPU (installé séparément dans le workflow pour forcer l'index CPU)
+# torch==2.5.1
+# torchaudio==2.5.1
+
+# Conversion audio
+ffmpeg-python==0.2.0
+
+# Configuration et journaux
+python-dotenv==1.0.1
+structlog==24.4.0
