@@ -23,10 +23,15 @@ class ClientSupabase:
     def __init__(self, url: str, cle_service: str):
         if not url or not cle_service:
             raise ValueError("SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY requis")
-        if "service_role" not in cle_service and len(cle_service) < 100:
-            # Le JWT service_role fait ~200+ caractères. Garde-fou grossier.
+        # Formats acceptés :
+        # - Ancien JWT (~200+ caracteres, contient "service_role" dans le payload base64)
+        # - Nouveau format Supabase 2026 : sb_secret_... (plus court)
+        est_legacy_jwt = "service_role" in cle_service or len(cle_service) >= 100
+        est_nouveau = cle_service.startswith("sb_secret_")
+        if not est_legacy_jwt and not est_nouveau:
             raise ValueError(
-                "La clé donnée ne ressemble pas à un service_role (trop courte)"
+                "La clé Supabase ne ressemble pas à une clé serveur "
+                "(ni JWT service_role, ni sb_secret_...)"
             )
         self.client: Client = create_client(url, cle_service)
         log.info("supabase_client_demarre", url=url)
