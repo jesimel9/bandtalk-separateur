@@ -41,52 +41,52 @@ class ClientSupabase:
     def prendre_prochain_morceau(self) -> dict[str, Any] | None:
         """Prend le plus ancien morceau 'en_attente' et le passe à 'en_cours'.
 
-        Verrou atomique côté Postgres : si deux serveurs tournent (improbable),
-        un seul l'attrape.
+        Verrou optimiste (UPDATE conditionnel) : si deux serveurs tournent
+        (improbable avec GitHub Actions + concurrency group), un seul l'attrape.
         """
-        reponse = self.client.rpc(
-            "prendre_prochain_morceau_en_attente"
-        ).execute()
-        # Si la fonction RPC n'existe pas, on retombe sur un UPDATE direct :
-        if reponse.data is None or (isinstance(reponse.data, list) and not reponse.data):
-            # Chemin de secours sans RPC (moins atomique mais ok pour un seul serveur)
-            res = (
-                self.client.table("morceaux_separation")
-                .select("*")
-                .eq("statut", "en_attente")
-                .order("date_ajout")
-                .limit(1)
-                .execute()
-            )
-            if not res.data:
-                return None
-            morceau = res.data[0]
-            # Verrou optimiste : on ne passe à 'en_cours' que si encore 'en_attente'
-            upd = (
-                self.client.table("morceaux_separation")
-                .update({"statut": "en_cours"})
-                .eq("id", morceau["id"])
-                .eq("statut", "en_attente")
-                .execute()
-            )
-            if not upd.data:
-                return None  # un autre l'a pris entre-temps
-            return morceau
-        return reponse.data[0] if isinstance(reponse.data, list) else reponse.data
+        res = (
+            self.client.table("morceaux_separation")
+            .select("*")
+            .eq("statut", "en_attente")
+            .order("date_ajout")
+            .limit(1)
+            .execute()
+        )
+        if not res.data:
+            return None
+        morceau = res.data[0]
+        upd = (
+            self.client.table("morceaux_separation")
+            .update({"statut": "en_cours"})
+            .eq("id", morceau["id"])
+            .eq("statut", "en_attente")
+            .execute()
+        )
+        if not upd.data:
+            return None  # un autre l'a pris entre-temps
+        return morceau
 
     def reprendre_morceaux_bloques(self, minutes: int = 10) -> int:
         """Remet à 'en_attente' les morceaux 'en_cours' depuis plus de N minutes.
 
-        Appelé au démarrage : si le serveur a planté pendant un traitement,
-        on reprend.
+        Appelé au démarrage : si un run précédent a planté pendant un traitement,
+        on reprend. UPDATE direct sur la table.
         """
-        res = self.client.rpc(
-            "reprendre_morceaux_bloques",
-            {"minutes_max": minutes},
-        ).execute()
-        if res.data is None:
+        from datetime import datetime, timezone, timedelta
+
+        seuil = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        try:
+            res = (
+                self.client.table("morceaux_separation")
+                .update({"statut": "en_attente"})
+                .eq("statut", "en_cours")
+                .lt("date_ajout", seuil)
+                .execute()
+            )
+            return len(res.data or [])
+        except Exception as erreur:
+            log.warning("reprendre_morceaux_bloques_echec", erreur=str(erreur))
             return 0
-        return int(res.data) if isinstance(res.data, int) else len(res.data or [])
 
     def marquer_pret(self, morceau_id: str, pistes_urls: dict[str, str]) -> None:
         """Passe la ligne à 'pret' avec les URLs des 6 pistes."""
