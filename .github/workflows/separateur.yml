@@ -4,7 +4,7 @@ name: Séparateur BandTalk
 # et peut aussi se déclencher à la main depuis l'onglet « Actions »
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "* * * * *"
   workflow_dispatch: {}
 
 # Évite que deux runs tournent en même temps (déjà empêché côté base, double sécurité)
