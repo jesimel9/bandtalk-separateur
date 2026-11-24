@@ -70,6 +70,8 @@ def separer(
         "-I",
         "-m",
         "demucs.separate",
+        "--shifts",
+        "0",
         "--two-stems=vocals" if modele == "htdemucs" else "",
         "-n",
         modele,
