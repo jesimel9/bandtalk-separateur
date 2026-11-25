@@ -115,6 +115,11 @@ class ClientSupabase:
             {"duree_secondes": duree_secondes}
         ).eq("id", morceau_id).execute()
 
+    def ecrire_bpm(self, morceau_id: str, bpm: int) -> None:
+        self.client.table("morceaux_separation").update(
+            {"bpm": bpm}
+        ).eq("id", morceau_id).execute()
+
     # --------------------------------------------------------------------- Storage
 
     def telecharger_source(self, chemin: str, destination: Path) -> None:
