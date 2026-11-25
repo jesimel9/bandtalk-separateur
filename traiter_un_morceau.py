@@ -90,7 +90,13 @@ def main() -> int:
                 f"(maximum {duree_max // 60} min)"
             )
 
-        # 3. Séparer
+        # 2b. Detecter le BPM
+        bpm = separation.detecter_bpm(fichier_source)
+        if bpm is not None:
+            client.ecrire_bpm(morceau_id, bpm)
+            log.info("bpm_ecrit", id=morceau_id, bpm=bpm)
+
+        # 3. Separer
         dossier_pistes = dossier_morceau / "pistes"
         pistes = separation.separer(
             fichier_source=fichier_source,
