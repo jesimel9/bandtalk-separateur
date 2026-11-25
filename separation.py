@@ -32,6 +32,21 @@ class SeparationError(Exception):
     """Erreur contrôlée pendant la séparation : message affichable à l'utilisateur."""
 
 
+def detecter_bpm(fichier: Path) -> int | None:
+    """Detecte le BPM d'un fichier audio avec librosa. None si echec."""
+    try:
+        import librosa
+
+        y, sr = librosa.load(str(fichier), sr=22050, mono=True, duration=60)
+        tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+        bpm = int(round(float(tempo)))
+        log.info("bpm_detecte", fichier=fichier.name, bpm=bpm)
+        return bpm if 30 <= bpm <= 300 else None
+    except Exception as erreur:
+        log.warning("bpm_echec", fichier=str(fichier), erreur=str(erreur))
+        return None
+
+
 def duree_secondes(fichier: Path) -> int:
     """Lit la durée d'un fichier audio avec ffprobe. 0 si inconnue."""
     try:
