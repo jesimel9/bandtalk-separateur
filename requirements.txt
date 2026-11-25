@@ -13,6 +13,9 @@ demucs==4.0.1
 # torch==2.5.1
 # torchaudio==2.5.1
 
+# Detection BPM
+librosa==0.10.2.post1
+
 # Conversion audio
 ffmpeg-python==0.2.0
 
