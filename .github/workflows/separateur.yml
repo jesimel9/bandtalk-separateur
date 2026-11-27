@@ -1,11 +1,22 @@
 name: Séparateur BandTalk
 
-# Démarre toutes les 5 minutes (minimum GitHub Actions)
-# et peut aussi se déclencher à la main depuis l'onglet « Actions »
+# Démarre toutes les minutes (repo public = minutes illimitées ; en pratique
+# GitHub peut retarder un peu en periode de charge, mais rarement plus de 2-3 min)
+# et peut aussi se déclencher à la main depuis l'onglet « Actions » OU via l'appli
+# (bouton « Réveiller le serveur » → Edge Function `reveiller-separateur` → API
+# GitHub workflow_dispatch). Avec reveil=true, le script poll 5 min au lieu de
+# sortir tout de suite si aucun morceau n'est trouvé : le gain est que les deps
+# (torch, demucs) se chargent PENDANT que l'utilisateur uploade son fichier.
 on:
   schedule:
     - cron: "* * * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      reveil:
+        description: "true = reste 5 min a poller meme si aucun morceau au depart"
+        required: false
+        default: "true"
+        type: string
 
 # Évite que deux runs tournent en même temps (déjà empêché côté base, double sécurité)
 concurrency:
@@ -15,7 +26,7 @@ concurrency:
 jobs:
   traiter_un_morceau:
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # large marge pour un morceau de 10 min
+    timeout-minutes: 20  # large marge pour un morceau de 10 min + 5 min de poll
 
     steps:
       - name: Récupérer le code
@@ -50,4 +61,10 @@ jobs:
           DEMUCS_MODELE: htdemucs_6s
           DUREE_MAX_SECONDES: "600"
           DEBIT_MP3_KBPS: "192"
+          # Si true : poll 5 min même si aucun morceau au démarrage (bouton « Réveiller »).
+          # Si false (cron auto) : sort tout de suite si rien à faire, sinon poll 5 min
+          # après le dernier morceau traité (fenêtre de grâce pour un 2e envoi).
+          MODE_REVEIL: ${{ inputs.reveil || 'false' }}
+          DUREE_POLL_SECONDES: "300"
+          INTERVALLE_POLL_SECONDES: "5"
         run: python traiter_un_morceau.py
